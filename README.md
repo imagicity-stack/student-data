@@ -1,7 +1,12 @@
-# Student Admission Form
+# Admissions Dashboard
 
-A simple student admission data-entry form built with **Next.js** that saves
+A student admissions **dashboard** built with **Next.js** that saves
 submissions to **Firebase Firestore**, ready to deploy on **Vercel**.
+
+The landing page is an analytics dashboard (totals, gender / category /
+class / income distributions, top reasons, support areas, and a recent
+admissions table). A **Create Admission** button opens the full form in a
+modal; saving it updates the analytics live.
 
 The form is organized into 16 sections: identity, admission, demographics,
 birth & background, father's details, mother's details, sibling details
@@ -12,9 +17,11 @@ child needs support (checkboxes), and transport.
 
 ## How it works
 
-- `app/page.js` — the multi-section admission form (client component).
-- `app/api/students/route.js` — server route handler that validates and writes
-  submissions to the `students` Firestore collection.
+- `app/page.js` — the analytics dashboard with a modal launcher (client component).
+- `app/AdmissionForm.js` — the multi-section admission form rendered in the modal.
+- `app/formConfig.js` — shared section/field definitions used by the form.
+- `app/api/students/route.js` — server route handler: `GET` lists admissions for
+  the dashboard, `POST` validates and writes to the `students` collection.
 - `lib/firebase-admin.js` — initializes the Firebase Admin SDK from environment
   variables (credentials stay server-side, never exposed to the browser).
 

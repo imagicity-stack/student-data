@@ -1,8 +1,8 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "Student Admission Form",
-  description: "Student admission data entry form",
+  title: "Admissions Dashboard",
+  description: "Student admissions dashboard with analytics and data entry",
 };
 
 export default function RootLayout({ children }) {

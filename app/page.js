@@ -1,523 +1,375 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import AdmissionForm from "./AdmissionForm";
+import {
+  INCOME_OPTIONS,
+  REASON_OPTIONS,
+  SUPPORT_OPTIONS,
+} from "./formConfig";
 
-const EMPLOYMENT_OPTIONS = [
-  "Government",
-  "Private",
-  "Business",
-  "Self employed",
-  "Defence",
+const PALETTE = [
+  "#6366f1",
+  "#22d3ee",
+  "#f472b6",
+  "#34d399",
+  "#fbbf24",
+  "#a78bfa",
+  "#fb7185",
+  "#38bdf8",
 ];
 
-const INCOME_OPTIONS = [
-  "Up to 1.5 lakhs",
-  "1.5 lakhs - 3 lakhs",
-  "3 lakhs - 6 lakhs",
-  "Above 6 lakhs",
-];
-
-const YES_NO = ["Yes", "No"];
-
-const REASON_OPTIONS = [
-  "Academic reputation",
-  "Proximity to home",
-  "Affordable fees",
-  "Quality of teachers",
-  "Infrastructure and facilities",
-  "Co-curricular and sports programs",
-  "Values and discipline",
-  "Recommended by family / friends",
-];
-
-const SUPPORT_OPTIONS = [
-  "Reading and writing",
-  "Mathematics",
-  "Speech and language",
-  "Social and emotional skills",
-  "Concentration and attention",
-  "Physical / motor skills",
-  "Confidence building",
-  "Special learning needs",
-];
-
-// Generic sections rendered from field descriptors. Special sections (siblings,
-// checkbox groups, transport) are rendered inline in the component.
-const SECTIONS = [
-  {
-    key: "identity",
-    number: 1,
-    title: "Identity",
-    fields: [
-      { name: "firstName", label: "First name", required: true },
-      { name: "lastName", label: "Last name", required: true },
-      { name: "dob", label: "Date of birth", type: "date" },
-      { name: "aadhaarNumber", label: "Aadhaar number" },
-      { name: "gender", label: "Gender", type: "select", options: ["Male", "Female"] },
-    ],
-  },
-  {
-    key: "admission",
-    number: 2,
-    title: "Admission",
-    fields: [
-      { name: "classAppliedFor", label: "Class applied for" },
-      { name: "academicYear", label: "Academic year", placeholder: "2026-2027" },
-    ],
-  },
-  {
-    key: "demographics",
-    number: 3,
-    title: "Demographics",
-    fields: [
-      { name: "nationality", label: "Nationality" },
-      { name: "religion", label: "Religion" },
-      { name: "category", label: "Category", type: "select", options: ["General", "OBC", "SC/ST"] },
-      { name: "permanentAddress", label: "Permanent address", type: "textarea", full: true },
-      { name: "city", label: "City" },
-      { name: "state", label: "State" },
-      { name: "pincode", label: "Pincode" },
-    ],
-  },
-  {
-    key: "birthBackground",
-    number: 4,
-    title: "Birth & Background",
-    fields: [
-      { name: "placeOfBirth", label: "Place of birth" },
-      { name: "birthCertificateNumber", label: "Birth certificate number" },
-      { name: "motherTongue", label: "Mother tongue" },
-      { name: "languagesKnown", label: "Languages known", placeholder: "Hindi, English, ..." },
-    ],
-  },
-  {
-    key: "fatherDetails",
-    number: 5,
-    title: "Father's Details",
-    fields: [
-      { name: "fullName", label: "Full name" },
-      { name: "mobileNumber", label: "Mobile number", type: "tel" },
-      { name: "educationalQualification", label: "Educational qualification" },
-      { name: "employmentType", label: "Employment type", type: "select", options: EMPLOYMENT_OPTIONS },
-      { name: "organizationName", label: "Organization name" },
-      { name: "annualIncomeRange", label: "Annual income range", type: "select", options: INCOME_OPTIONS },
-    ],
-  },
-  {
-    key: "motherDetails",
-    number: 6,
-    title: "Mother's Details",
-    fields: [
-      { name: "fullName", label: "Full name" },
-      { name: "mobileNumber", label: "Mobile number", type: "tel" },
-      { name: "educationalQualification", label: "Educational qualification" },
-      { name: "employmentType", label: "Employment type", type: "select", options: EMPLOYMENT_OPTIONS },
-      { name: "organizationName", label: "Organization name" },
-      { name: "annualIncomeRange", label: "Annual income range", type: "select", options: INCOME_OPTIONS },
-    ],
-  },
-  // 7: siblings (special)
-  {
-    key: "residentialAddress",
-    number: 8,
-    title: "Residential Address",
-    fields: [
-      { name: "houseAddress", label: "House address", type: "textarea", full: true },
-      { name: "city", label: "City" },
-      { name: "state", label: "State" },
-      { name: "district", label: "District" },
-      { name: "pincode", label: "Pincode" },
-    ],
-  },
-  {
-    key: "previousSchool",
-    number: 9,
-    title: "Previous School Information",
-    fields: [
-      { name: "previousSchool", label: "Previous school" },
-      { name: "board", label: "Board", placeholder: "CBSE / ICSE / State / ..." },
-      { name: "mediumOfInstruction", label: "Medium of instruction" },
-      { name: "yearsStudied", label: "Number of years studied", type: "number" },
-      { name: "reasonForLeaving", label: "Reason for leaving", type: "textarea", full: true },
-    ],
-  },
-  {
-    key: "academicPerformance",
-    number: 10,
-    title: "Academic Performance",
-    fields: [
-      { name: "lastClassPassed", label: "Last class passed" },
-      { name: "passedLastClass", label: "Passed last class?", type: "select", options: YES_NO },
-      { name: "percentageScored", label: "Percentage scored", placeholder: "e.g. 85%" },
-      { name: "subjectsStudied", label: "Subjects studied", type: "textarea", full: true },
-      { name: "subjectsFoundDifficult", label: "Subjects found difficult", type: "textarea", full: true },
-      { name: "tcAvailable", label: "Transfer certificate (TC) available?", type: "select", options: YES_NO },
-    ],
-  },
-  {
-    key: "coCurricular",
-    number: 11,
-    title: "Co-curricular Exposure",
-    fields: [
-      { name: "sportsParticipation", label: "Previous participation in sports", type: "textarea", full: true },
-      { name: "artsMusicParticipation", label: "Previous participation in arts or music", type: "textarea", full: true },
-    ],
-  },
-  {
-    key: "health",
-    number: 12,
-    title: "Health & Medical Information",
-    fields: [
-      { name: "bloodGroup", label: "Blood group" },
-      { name: "allergies", label: "Known allergies" },
-      { name: "chronicConditions", label: "Chronic medical conditions" },
-      { name: "regularMedication", label: "On regular medication?", type: "select", options: YES_NO },
-      { name: "specialNeeds", label: "Any special needs / disability" },
-      { name: "vaccinationUpToDate", label: "Vaccinations up to date?", type: "select", options: YES_NO },
-      { name: "physicianName", label: "Family physician name" },
-      { name: "physicianContact", label: "Physician contact number", type: "tel" },
-    ],
-  },
-  {
-    key: "emergencyContact",
-    number: 13,
-    title: "Emergency Contact",
-    fields: [
-      { name: "contactName", label: "Contact name" },
-      { name: "relationship", label: "Relationship to student" },
-      { name: "primaryPhone", label: "Primary phone", type: "tel" },
-      { name: "alternatePhone", label: "Alternate phone", type: "tel" },
-      { name: "email", label: "Email", type: "email" },
-      { name: "address", label: "Address", type: "textarea", full: true },
-    ],
-  },
-];
-
-function emptySection(fields) {
-  return Object.fromEntries(fields.map((f) => [f.name, ""]));
-}
-
-function buildInitialState() {
-  const state = {};
-  for (const section of SECTIONS) {
-    state[section.key] = emptySection(section.fields);
+function countBy(students, getKey) {
+  const map = new Map();
+  for (const s of students) {
+    const raw = getKey(s);
+    const keys = Array.isArray(raw) ? raw : [raw];
+    for (const k of keys) {
+      const key = (k ?? "").toString().trim();
+      if (!key) continue;
+      map.set(key, (map.get(key) || 0) + 1);
+    }
   }
-  state.siblings = { numberOfSiblings: "", studyingInThisSchool: "", siblings: [] };
-  state.reasonForChoosing = [];
-  state.supportAreas = [];
-  state.transport = { required: "", location: "" };
-  return state;
+  return [...map.entries()]
+    .map(([label, value]) => ({ label, value }))
+    .sort((a, b) => b.value - a.value);
 }
 
-function Field({ field, value, onChange }) {
-  const id = field.name;
-  const common = {
-    id,
-    name: field.name,
-    value: value ?? "",
-    onChange: (e) => onChange(field.name, e.target.value),
-  };
-  return (
-    <div className={`field${field.full ? " full" : ""}`}>
-      <label htmlFor={id}>
-        {field.label}
-        {field.required ? <span className="req"> *</span> : null}
-      </label>
-      {field.type === "select" ? (
-        <select {...common}>
-          <option value="">Select...</option>
-          {field.options.map((o) => (
-            <option key={o} value={o}>
-              {o}
-            </option>
-          ))}
-        </select>
-      ) : field.type === "textarea" ? (
-        <textarea {...common} placeholder={field.placeholder} />
-      ) : (
-        <input type={field.type || "text"} {...common} placeholder={field.placeholder} />
-      )}
-    </div>
-  );
-}
+function Donut({ data, size = 168 }) {
+  const total = data.reduce((sum, d) => sum + d.value, 0);
+  const r = size / 2 - 16;
+  const c = 2 * Math.PI * r;
+  let offset = 0;
 
-function GenericSection({ section, values, onChange }) {
+  if (!total) {
+    return <p className="empty-chart">No data yet</p>;
+  }
+
   return (
-    <section className="section">
-      <h2>
-        <span className="num">{section.number}</span>
-        {section.title}
-      </h2>
-      <div className="grid">
-        {section.fields.map((field) => (
-          <Field
-            key={field.name}
-            field={field}
-            value={values[field.name]}
-            onChange={(name, value) => onChange(section.key, name, value)}
-          />
+    <div className="donut-wrap">
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
+          {data.map((d, i) => {
+            const len = (d.value / total) * c;
+            const seg = (
+              <circle
+                key={d.label}
+                cx={size / 2}
+                cy={size / 2}
+                r={r}
+                fill="none"
+                stroke={PALETTE[i % PALETTE.length]}
+                strokeWidth={16}
+                strokeDasharray={`${len} ${c - len}`}
+                strokeDashoffset={-offset}
+                strokeLinecap="butt"
+              />
+            );
+            offset += len;
+            return seg;
+          })}
+        </g>
+        <text
+          x="50%"
+          y="46%"
+          textAnchor="middle"
+          className="donut-total"
+        >
+          {total}
+        </text>
+        <text x="50%" y="60%" textAnchor="middle" className="donut-label">
+          total
+        </text>
+      </svg>
+      <ul className="legend">
+        {data.map((d, i) => (
+          <li key={d.label}>
+            <span
+              className="dot"
+              style={{ background: PALETTE[i % PALETTE.length] }}
+            />
+            {d.label}
+            <strong>{d.value}</strong>
+          </li>
         ))}
-      </div>
-    </section>
+      </ul>
+    </div>
   );
 }
 
-function CheckboxGroup({ options, selected, onToggle }) {
+function BarList({ data, accent = "#6366f1" }) {
+  const max = Math.max(1, ...data.map((d) => d.value));
+  if (!data.length) {
+    return <p className="empty-chart">No data yet</p>;
+  }
   return (
-    <div className="checks">
-      {options.map((opt) => (
-        <label key={opt} className="check">
-          <input
-            type="checkbox"
-            checked={selected.includes(opt)}
-            onChange={() => onToggle(opt)}
-          />
-          <span>{opt}</span>
-        </label>
+    <ul className="barlist">
+      {data.map((d) => (
+        <li key={d.label}>
+          <span className="bar-label" title={d.label}>
+            {d.label}
+          </span>
+          <span className="bar-track">
+            <span
+              className="bar-fill"
+              style={{ width: `${(d.value / max) * 100}%`, background: accent }}
+            />
+          </span>
+          <span className="bar-value">{d.value}</span>
+        </li>
       ))}
+    </ul>
+  );
+}
+
+function StatCard({ label, value, sub }) {
+  return (
+    <div className="stat-card">
+      <span className="stat-value">{value}</span>
+      <span className="stat-label">{label}</span>
+      {sub ? <span className="stat-sub">{sub}</span> : null}
     </div>
   );
+}
+
+function formatDate(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 export default function Home() {
-  const [data, setData] = useState(buildInitialState);
-  const [status, setStatus] = useState({ type: null, message: "" });
-  const [submitting, setSubmitting] = useState(false);
+  const [students, setStudents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [toast, setToast] = useState(null);
 
-  function updateField(sectionKey, name, value) {
-    setData((prev) => ({
-      ...prev,
-      [sectionKey]: { ...prev[sectionKey], [name]: value },
-    }));
-  }
-
-  function updateSiblingCount(value) {
-    const count = Math.max(0, Math.min(20, parseInt(value || "0", 10) || 0));
-    setData((prev) => {
-      const existing = prev.siblings.siblings;
-      const next = Array.from(
-        { length: count },
-        (_, i) => existing[i] || { name: "", className: "" }
-      );
-      return {
-        ...prev,
-        siblings: { ...prev.siblings, numberOfSiblings: value, siblings: next },
-      };
-    });
-  }
-
-  function updateSiblingRow(index, key, value) {
-    setData((prev) => {
-      const next = prev.siblings.siblings.map((s, i) =>
-        i === index ? { ...s, [key]: value } : s
-      );
-      return { ...prev, siblings: { ...prev.siblings, siblings: next } };
-    });
-  }
-
-  function toggleCheckbox(key, opt) {
-    setData((prev) => {
-      const list = prev[key];
-      return {
-        ...prev,
-        [key]: list.includes(opt) ? list.filter((x) => x !== opt) : [...list, opt],
-      };
-    });
-  }
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    setStatus({ type: null, message: "" });
-
-    if (!data.identity.firstName.trim() || !data.identity.lastName.trim()) {
-      setStatus({ type: "error", message: "First name and last name are required." });
-      window.scrollTo({ top: 0, behavior: "smooth" });
-      return;
-    }
-
-    setSubmitting(true);
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
-      const res = await fetch("/api/students", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
+      const res = await fetch("/api/students", { cache: "no-store" });
       const body = await res.json();
-      if (!res.ok) throw new Error(body.error || "Submission failed.");
-      setStatus({
-        type: "success",
-        message: `Admission form submitted successfully. Reference ID: ${body.id}`,
-      });
-      setData(buildInitialState());
+      if (!res.ok) throw new Error(body.error || "Failed to load admissions.");
+      setStudents(body.students || []);
     } catch (err) {
-      setStatus({ type: "error", message: err.message });
+      setError(err.message);
     } finally {
-      setSubmitting(false);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  useEffect(() => {
+    if (showForm) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [showForm]);
+
+  const analytics = useMemo(() => {
+    const now = Date.now();
+    const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+    const recentCount = students.filter((s) => {
+      const t = new Date(s.createdAt).getTime();
+      return !Number.isNaN(t) && t >= weekAgo;
+    }).length;
+    const transportYes = students.filter(
+      (s) => s.transport?.required === "Yes"
+    ).length;
+
+    return {
+      total: students.length,
+      recentCount,
+      transportYes,
+      classes: countBy(students, (s) => s.admission?.classAppliedFor),
+      gender: countBy(students, (s) => s.identity?.gender),
+      category: countBy(students, (s) => s.demographics?.category),
+      academicYear: countBy(students, (s) => s.admission?.academicYear),
+      income: countBy(students, (s) => s.fatherDetails?.annualIncomeRange).sort(
+        (a, b) => INCOME_OPTIONS.indexOf(a.label) - INCOME_OPTIONS.indexOf(b.label)
+      ),
+      reasons: countBy(students, (s) => s.reasonForChoosing).filter((d) =>
+        REASON_OPTIONS.includes(d.label)
+      ),
+      support: countBy(students, (s) => s.supportAreas).filter((d) =>
+        SUPPORT_OPTIONS.includes(d.label)
+      ),
+      recent: students.slice(0, 8),
+    };
+  }, [students]);
+
+  function handleSuccess(id) {
+    setShowForm(false);
+    setToast(`Admission saved · Ref ${id}`);
+    setTimeout(() => setToast(null), 4000);
+    load();
   }
 
   return (
-    <main className="page">
-      <header className="page-header">
-        <h1>Student Admission Form</h1>
-        <p>Please fill in the details below. Fields marked with * are required.</p>
+    <main className="dash">
+      <header className="dash-header">
+        <div>
+          <h1>Admissions Dashboard</h1>
+          <p>Live overview of student admission applications.</p>
+        </div>
+        <button className="primary-btn" onClick={() => setShowForm(true)}>
+          + Create Admission
+        </button>
       </header>
 
-      {status.type ? (
-        <div className={`banner ${status.type}`}>{status.message}</div>
-      ) : null}
+      {toast ? <div className="toast">{toast}</div> : null}
 
-      <form onSubmit={handleSubmit} noValidate>
-        {SECTIONS.map((section) => (
-          <div key={section.key}>
-            <GenericSection
-              section={section}
-              values={data[section.key]}
-              onChange={updateField}
-            />
-
-            {/* 7. Sibling details rendered right after Mother's Details */}
-            {section.key === "motherDetails" ? (
-              <section className="section">
-                <h2>
-                  <span className="num">7</span>
-                  Sibling Details
-                </h2>
-                <div className="grid">
-                  <div className="field">
-                    <label htmlFor="numberOfSiblings">Number of siblings</label>
-                    <input
-                      id="numberOfSiblings"
-                      type="number"
-                      min="0"
-                      max="20"
-                      value={data.siblings.numberOfSiblings}
-                      onChange={(e) => updateSiblingCount(e.target.value)}
-                    />
-                  </div>
-                  <div className="field">
-                    <label htmlFor="studyingInThisSchool">
-                      Siblings studying in this school?
-                    </label>
-                    <select
-                      id="studyingInThisSchool"
-                      value={data.siblings.studyingInThisSchool}
-                      onChange={(e) =>
-                        updateField("siblings", "studyingInThisSchool", e.target.value)
-                      }
-                    >
-                      <option value="">Select...</option>
-                      {YES_NO.map((o) => (
-                        <option key={o} value={o}>
-                          {o}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {data.siblings.studyingInThisSchool === "Yes" &&
-                data.siblings.siblings.length > 0 ? (
-                  <>
-                    <p className="hint" style={{ marginTop: 14 }}>
-                      Enter the name and class for each sibling studying in this school.
-                    </p>
-                    {data.siblings.siblings.map((s, i) => (
-                      <div className="sibling-row" key={i}>
-                        <span className="row-title">Sibling {i + 1}</span>
-                        <div className="field">
-                          <label>Name</label>
-                          <input
-                            value={s.name}
-                            onChange={(e) => updateSiblingRow(i, "name", e.target.value)}
-                          />
-                        </div>
-                        <div className="field">
-                          <label>Class</label>
-                          <input
-                            value={s.className}
-                            onChange={(e) =>
-                              updateSiblingRow(i, "className", e.target.value)
-                            }
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </>
-                ) : null}
-              </section>
-            ) : null}
-          </div>
-        ))}
-
-        {/* 14. Primary reason for choosing our school */}
-        <section className="section">
-          <h2>
-            <span className="num">14</span>
-            Primary Reason for Choosing Our School
-          </h2>
-          <CheckboxGroup
-            options={REASON_OPTIONS}
-            selected={data.reasonForChoosing}
-            onToggle={(opt) => toggleCheckbox("reasonForChoosing", opt)}
-          />
-        </section>
-
-        {/* 15. Areas where child needs support */}
-        <section className="section">
-          <h2>
-            <span className="num">15</span>
-            Areas Where Child Needs Support
-          </h2>
-          <CheckboxGroup
-            options={SUPPORT_OPTIONS}
-            selected={data.supportAreas}
-            onToggle={(opt) => toggleCheckbox("supportAreas", opt)}
-          />
-        </section>
-
-        {/* 16. Transport */}
-        <section className="section">
-          <h2>
-            <span className="num">16</span>
-            Transport
-          </h2>
-          <div className="grid">
-            <div className="field">
-              <label htmlFor="transportRequired">Transport required?</label>
-              <select
-                id="transportRequired"
-                value={data.transport.required}
-                onChange={(e) => updateField("transport", "required", e.target.value)}
-              >
-                <option value="">Select...</option>
-                {["Yes", "No", "Maybe"].map((o) => (
-                  <option key={o} value={o}>
-                    {o}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {data.transport.required === "Yes" ? (
-              <div className="field">
-                <label htmlFor="transportLocation">Pickup / drop location</label>
-                <input
-                  id="transportLocation"
-                  value={data.transport.location}
-                  onChange={(e) => updateField("transport", "location", e.target.value)}
-                />
-              </div>
-            ) : null}
-          </div>
-        </section>
-
-        <div className="actions">
-          <button type="submit" className="submit" disabled={submitting}>
-            {submitting ? "Submitting..." : "Submit Admission Form"}
+      {error ? (
+        <div className="banner error">
+          {error}
+          <button className="link-btn" onClick={load}>
+            Retry
           </button>
         </div>
-      </form>
+      ) : null}
+
+      {loading ? (
+        <div className="placeholder">Loading analytics…</div>
+      ) : (
+        <>
+          <section className="stats">
+            <StatCard
+              label="Total Admissions"
+              value={analytics.total}
+              sub="all time"
+            />
+            <StatCard
+              label="Last 7 Days"
+              value={analytics.recentCount}
+              sub="new applications"
+            />
+            <StatCard
+              label="Classes Applied"
+              value={analytics.classes.length}
+              sub="distinct"
+            />
+            <StatCard
+              label="Transport Needed"
+              value={analytics.transportYes}
+              sub="students"
+            />
+          </section>
+
+          {analytics.total === 0 ? (
+            <div className="placeholder">
+              No admissions yet. Click <strong>Create Admission</strong> to add
+              the first one.
+            </div>
+          ) : (
+            <>
+              <section className="cards">
+                <div className="card">
+                  <h3>Gender Distribution</h3>
+                  <Donut data={analytics.gender} />
+                </div>
+                <div className="card">
+                  <h3>Category Distribution</h3>
+                  <Donut data={analytics.category} />
+                </div>
+                <div className="card">
+                  <h3>Class Applied For</h3>
+                  <BarList data={analytics.classes} accent="#6366f1" />
+                </div>
+                <div className="card">
+                  <h3>Father's Income Range</h3>
+                  <BarList data={analytics.income} accent="#34d399" />
+                </div>
+                <div className="card">
+                  <h3>Academic Year</h3>
+                  <BarList data={analytics.academicYear} accent="#38bdf8" />
+                </div>
+                <div className="card">
+                  <h3>Top Reasons for Choosing</h3>
+                  <BarList data={analytics.reasons} accent="#f472b6" />
+                </div>
+                <div className="card">
+                  <h3>Support Areas Requested</h3>
+                  <BarList data={analytics.support} accent="#fbbf24" />
+                </div>
+              </section>
+
+              <section className="card recent">
+                <h3>Recent Admissions</h3>
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Class</th>
+                        <th>Academic Year</th>
+                        <th>Category</th>
+                        <th>Submitted</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {analytics.recent.map((s) => (
+                        <tr key={s.id}>
+                          <td>
+                            {[s.identity?.firstName, s.identity?.lastName]
+                              .filter(Boolean)
+                              .join(" ") || "—"}
+                          </td>
+                          <td>{s.admission?.classAppliedFor || "—"}</td>
+                          <td>{s.admission?.academicYear || "—"}</td>
+                          <td>{s.demographics?.category || "—"}</td>
+                          <td>{formatDate(s.createdAt)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            </>
+          )}
+        </>
+      )}
+
+      {showForm ? (
+        <div
+          className="modal-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowForm(false);
+          }}
+        >
+          <div className="modal" role="dialog" aria-modal="true">
+            <div className="modal-head">
+              <h2>New Student Admission</h2>
+              <button
+                className="close-btn"
+                aria-label="Close"
+                onClick={() => setShowForm(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              <AdmissionForm
+                onSuccess={handleSuccess}
+                onClose={() => setShowForm(false)}
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
