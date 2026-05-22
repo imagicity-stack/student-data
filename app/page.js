@@ -9,14 +9,14 @@ import {
 } from "./formConfig";
 
 const PALETTE = [
-  "#6366f1",
-  "#22d3ee",
-  "#f472b6",
-  "#34d399",
-  "#fbbf24",
-  "#a78bfa",
-  "#fb7185",
-  "#38bdf8",
+  "#2563eb",
+  "#0891b2",
+  "#7c3aed",
+  "#059669",
+  "#d97706",
+  "#db2777",
+  "#0d9488",
+  "#4f46e5",
 ];
 
 function countBy(students, getKey) {
@@ -287,23 +287,23 @@ export default function Home() {
                 </div>
                 <div className="card">
                   <h3>Class Applied For</h3>
-                  <BarList data={analytics.classes} accent="#6366f1" />
+                  <BarList data={analytics.classes} accent="#2563eb" />
                 </div>
                 <div className="card">
                   <h3>Father's Income Range</h3>
-                  <BarList data={analytics.income} accent="#34d399" />
+                  <BarList data={analytics.income} accent="#059669" />
                 </div>
                 <div className="card">
                   <h3>Academic Year</h3>
-                  <BarList data={analytics.academicYear} accent="#38bdf8" />
+                  <BarList data={analytics.academicYear} accent="#0891b2" />
                 </div>
                 <div className="card">
                   <h3>Top Reasons for Choosing</h3>
-                  <BarList data={analytics.reasons} accent="#f472b6" />
+                  <BarList data={analytics.reasons} accent="#7c3aed" />
                 </div>
                 <div className="card">
                   <h3>Support Areas Requested</h3>
-                  <BarList data={analytics.support} accent="#fbbf24" />
+                  <BarList data={analytics.support} accent="#d97706" />
                 </div>
               </section>
 
