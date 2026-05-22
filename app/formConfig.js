@@ -6,6 +6,8 @@ export const EMPLOYMENT_OPTIONS = [
   "Defence",
 ];
 
+export const MOTHER_EMPLOYMENT_OPTIONS = [...EMPLOYMENT_OPTIONS, "Homemaker"];
+
 export const INCOME_OPTIONS = [
   "Up to 1.5 lakhs",
   "1.5 lakhs - 3 lakhs",
@@ -107,7 +109,7 @@ export const SECTIONS = [
       { name: "fullName", label: "Full name" },
       { name: "mobileNumber", label: "Mobile number", type: "tel" },
       { name: "educationalQualification", label: "Educational qualification" },
-      { name: "employmentType", label: "Employment type", type: "select", options: EMPLOYMENT_OPTIONS },
+      { name: "employmentType", label: "Employment type", type: "select", options: MOTHER_EMPLOYMENT_OPTIONS },
       { name: "organizationName", label: "Organization name" },
       { name: "annualIncomeRange", label: "Annual income range", type: "select", options: INCOME_OPTIONS },
     ],
