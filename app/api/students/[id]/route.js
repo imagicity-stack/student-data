@@ -17,8 +17,12 @@ export async function PUT(request, { params }) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
+  const status = payload?.status === "draft" ? "draft" : "complete";
   const identity = payload?.identity ?? {};
-  if (!identity.firstName?.trim() || !identity.lastName?.trim()) {
+  if (
+    status === "complete" &&
+    (!identity.firstName?.trim() || !identity.lastName?.trim())
+  ) {
     return NextResponse.json(
       { error: "First name and last name are required." },
       { status: 400 }
@@ -36,7 +40,7 @@ export async function PUT(request, { params }) {
       return NextResponse.json({ error: "Student not found." }, { status: 404 });
     }
     await ref.set(
-      { ...data, updatedAt: new Date().toISOString() },
+      { ...data, status, updatedAt: new Date().toISOString() },
       { merge: true }
     );
     return NextResponse.json({ id });

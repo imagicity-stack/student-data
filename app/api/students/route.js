@@ -30,8 +30,12 @@ export async function POST(request) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
+  const status = payload?.status === "draft" ? "draft" : "complete";
   const identity = payload?.identity ?? {};
-  if (!identity.firstName?.trim() || !identity.lastName?.trim()) {
+  if (
+    status === "complete" &&
+    (!identity.firstName?.trim() || !identity.lastName?.trim())
+  ) {
     return NextResponse.json(
       { error: "First name and last name are required." },
       { status: 400 }
@@ -40,9 +44,12 @@ export async function POST(request) {
 
   try {
     const db = getDb();
+    const now = new Date().toISOString();
     const doc = await db.collection("students").add({
       ...payload,
-      createdAt: new Date().toISOString(),
+      status,
+      createdAt: now,
+      updatedAt: now,
     });
     return NextResponse.json({ id: doc.id }, { status: 201 });
   } catch (err) {
