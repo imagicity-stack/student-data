@@ -59,8 +59,10 @@ export const SECTIONS = [
     number: 2,
     title: "Admission",
     fields: [
+      { name: "admissionFormNumber", label: "Admission form number" },
       { name: "classAppliedFor", label: "Class applied for" },
       { name: "academicYear", label: "Academic year", placeholder: "2026-2027" },
+      { name: "dateOfAdmission", label: "Date of admission", type: "date" },
     ],
   },
   {
@@ -204,5 +206,41 @@ export function buildInitialState() {
   state.reasonForChoosing = [];
   state.supportAreas = [];
   state.transport = { required: "", location: "" };
+  return state;
+}
+
+// Populate a full form state from a saved student document, tolerating records
+// created before newer fields existed.
+export function hydrateState(student) {
+  const state = buildInitialState();
+  if (!student) return state;
+
+  for (const section of SECTIONS) {
+    const src = student[section.key] || {};
+    for (const f of section.fields) {
+      if (src[f.name] != null) state[section.key][f.name] = src[f.name];
+    }
+  }
+
+  state.siblings = {
+    numberOfSiblings: student.siblings?.numberOfSiblings ?? "",
+    studyingInThisSchool: student.siblings?.studyingInThisSchool ?? "",
+    siblings: Array.isArray(student.siblings?.siblings)
+      ? student.siblings.siblings.map((x) => ({
+          name: x?.name ?? "",
+          className: x?.className ?? "",
+        }))
+      : [],
+  };
+  state.reasonForChoosing = Array.isArray(student.reasonForChoosing)
+    ? [...student.reasonForChoosing]
+    : [];
+  state.supportAreas = Array.isArray(student.supportAreas)
+    ? [...student.supportAreas]
+    : [];
+  state.transport = {
+    required: student.transport?.required ?? "",
+    location: student.transport?.location ?? "",
+  };
   return state;
 }
