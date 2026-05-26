@@ -7,6 +7,7 @@ import {
   SUPPORT_OPTIONS,
   YES_NO,
   buildInitialState,
+  hydrateState,
 } from "./formConfig";
 
 function Field({ field, value, onChange }) {
@@ -79,8 +80,11 @@ function CheckboxGroup({ options, selected, onToggle }) {
   );
 }
 
-export default function AdmissionForm({ onSuccess, onClose }) {
-  const [data, setData] = useState(buildInitialState);
+export default function AdmissionForm({ id, initial, onSuccess, onClose }) {
+  const isEdit = Boolean(id);
+  const [data, setData] = useState(() =>
+    initial ? hydrateState(initial) : buildInitialState()
+  );
   const [status, setStatus] = useState({ type: null, message: "" });
   const [submitting, setSubmitting] = useState(false);
 
@@ -136,8 +140,8 @@ export default function AdmissionForm({ onSuccess, onClose }) {
 
     setSubmitting(true);
     try {
-      const res = await fetch("/api/students", {
-        method: "POST",
+      const res = await fetch(isEdit ? `/api/students/${id}` : "/api/students", {
+        method: isEdit ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
@@ -145,10 +149,12 @@ export default function AdmissionForm({ onSuccess, onClose }) {
       if (!res.ok) throw new Error(body.error || "Submission failed.");
       setStatus({
         type: "success",
-        message: `Admission submitted successfully. Reference ID: ${body.id}`,
+        message: isEdit
+          ? "Admission updated successfully."
+          : `Admission submitted successfully. Reference ID: ${body.id}`,
       });
-      setData(buildInitialState());
-      onSuccess?.(body.id);
+      if (!isEdit) setData(buildInitialState());
+      onSuccess?.(body.id, isEdit);
     } catch (err) {
       setStatus({ type: "error", message: err.message });
     } finally {
@@ -307,7 +313,11 @@ export default function AdmissionForm({ onSuccess, onClose }) {
 
       <div className="actions">
         <button type="submit" className="submit" disabled={submitting}>
-          {submitting ? "Submitting..." : "Submit Admission"}
+          {submitting
+            ? "Saving..."
+            : isEdit
+            ? "Save Changes"
+            : "Submit Admission"}
         </button>
         <button type="button" className="ghost-btn" onClick={onClose}>
           Cancel

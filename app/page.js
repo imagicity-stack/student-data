@@ -236,9 +236,14 @@ function DetailSection({ number, title, children }) {
   );
 }
 
-function StudentDetails({ s }) {
+function StudentDetails({ s, onEdit }) {
   return (
     <div className="detail-panel">
+      <div className="detail-actions">
+        <button className="ghost-btn small" onClick={() => onEdit(s)}>
+          Edit admission
+        </button>
+      </div>
       {SECTIONS.map((section) => {
         const v = s[section.key] || {};
         return (
@@ -343,6 +348,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState(null);
   const [toast, setToast] = useState(null);
 
   const [filters, setFilters] = useState(EMPTY_FILTERS);
@@ -465,9 +471,24 @@ export default function Home() {
     setExpanded(new Set());
   }
 
-  function handleSuccess(id) {
+  function openCreate() {
+    setEditing(null);
+    setShowForm(true);
+  }
+
+  function openEdit(student) {
+    setEditing(student);
+    setShowForm(true);
+  }
+
+  function closeForm() {
     setShowForm(false);
-    setToast(`Admission saved · Ref ${id}`);
+    setEditing(null);
+  }
+
+  function handleSuccess(id, wasEdit) {
+    closeForm();
+    setToast(wasEdit ? "Admission updated" : `Admission saved · Ref ${id}`);
     setTimeout(() => setToast(null), 4000);
     load();
   }
@@ -479,7 +500,7 @@ export default function Home() {
           <h1>Admissions Dashboard</h1>
           <p>Live overview of student admission applications.</p>
         </div>
-        <button className="primary-btn" onClick={() => setShowForm(true)}>
+        <button className="primary-btn" onClick={openCreate}>
           + Create Admission
         </button>
       </header>
@@ -680,7 +701,9 @@ export default function Home() {
                               {formatDate(s.createdAt)}
                             </span>
                           </button>
-                          {isOpen ? <StudentDetails s={s} /> : null}
+                          {isOpen ? (
+                            <StudentDetails s={s} onEdit={openEdit} />
+                          ) : null}
                         </li>
                       );
                     })}
@@ -696,24 +719,23 @@ export default function Home() {
         <div
           className="modal-overlay"
           onClick={(e) => {
-            if (e.target === e.currentTarget) setShowForm(false);
+            if (e.target === e.currentTarget) closeForm();
           }}
         >
           <div className="modal" role="dialog" aria-modal="true">
             <div className="modal-head">
-              <h2>New Student Admission</h2>
-              <button
-                className="close-btn"
-                aria-label="Close"
-                onClick={() => setShowForm(false)}
-              >
+              <h2>{editing ? "Edit Admission" : "New Student Admission"}</h2>
+              <button className="close-btn" aria-label="Close" onClick={closeForm}>
                 ×
               </button>
             </div>
             <div className="modal-body">
               <AdmissionForm
+                key={editing?.id || "new"}
+                id={editing?.id}
+                initial={editing}
                 onSuccess={handleSuccess}
-                onClose={() => setShowForm(false)}
+                onClose={closeForm}
               />
             </div>
           </div>

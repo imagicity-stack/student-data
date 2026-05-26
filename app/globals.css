@@ -519,6 +519,12 @@ tbody tr:hover td {
   }
 }
 
+.detail-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+}
+
 .detail-section {
   background: var(--surface);
   border: 1px solid var(--border);
