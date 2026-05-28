@@ -78,6 +78,19 @@ function formatDate(iso) {
 }
 
 /* ---------- CSV export ---------- */
+// Fields that should be exported as text so spreadsheets don't convert long
+// digit strings into exponential notation or drop leading zeros.
+const TEXT_FIELDS = new Set([
+  "aadhaarNumber",
+  "pincode",
+  "mobileNumber",
+  "primaryPhone",
+  "alternatePhone",
+  "physicianContact",
+  "birthCertificateNumber",
+  "admissionFormNumber",
+]);
+
 const CSV_COLUMNS = (() => {
   const cols = [];
   for (const sec of SECTIONS) {
@@ -85,6 +98,7 @@ const CSV_COLUMNS = (() => {
       cols.push({
         header: `${sec.title} - ${f.label}`,
         get: (s) => s[sec.key]?.[f.name],
+        asText: TEXT_FIELDS.has(f.name),
       });
     }
     if (sec.key === "motherDetails") {
@@ -124,10 +138,22 @@ function escapeCsv(value) {
   return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
 }
 
+// Force a cell to be read as text in Excel/Google Sheets via the ="..." trick,
+// preserving exact digits for IDs like Aadhaar / phone / pincode.
+function csvText(value) {
+  if (value == null || value === "") return "";
+  const v = value.toString().replace(/"/g, '""');
+  return `"=""${v}"""`;
+}
+
 function downloadCsv(students) {
   const lines = [CSV_COLUMNS.map((c) => escapeCsv(c.header)).join(",")];
   for (const s of students) {
-    lines.push(CSV_COLUMNS.map((c) => escapeCsv(c.get(s))).join(","));
+    lines.push(
+      CSV_COLUMNS.map((c) =>
+        c.asText ? csvText(c.get(s)) : escapeCsv(c.get(s))
+      ).join(",")
+    );
   }
   const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
