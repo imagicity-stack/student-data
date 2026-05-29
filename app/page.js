@@ -52,6 +52,20 @@ function fullName(s) {
   );
 }
 
+// Records created before the draft feature have no status; treat them as filled.
+function statusOf(s) {
+  return s.status === "draft" ? "draft" : "complete";
+}
+
+function StatusBadge({ status }) {
+  const draft = status === "draft";
+  return (
+    <span className={`status-badge ${draft ? "draft" : "complete"}`}>
+      {draft ? "Draft" : "Filled"}
+    </span>
+  );
+}
+
 function formatDate(iso) {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -64,6 +78,19 @@ function formatDate(iso) {
 }
 
 /* ---------- CSV export ---------- */
+// Fields that should be exported as text so spreadsheets don't convert long
+// digit strings into exponential notation or drop leading zeros.
+const TEXT_FIELDS = new Set([
+  "aadhaarNumber",
+  "pincode",
+  "mobileNumber",
+  "primaryPhone",
+  "alternatePhone",
+  "physicianContact",
+  "birthCertificateNumber",
+  "admissionFormNumber",
+]);
+
 const CSV_COLUMNS = (() => {
   const cols = [];
   for (const sec of SECTIONS) {
@@ -71,6 +98,7 @@ const CSV_COLUMNS = (() => {
       cols.push({
         header: `${sec.title} - ${f.label}`,
         get: (s) => s[sec.key]?.[f.name],
+        asText: TEXT_FIELDS.has(f.name),
       });
     }
     if (sec.key === "motherDetails") {
@@ -110,10 +138,22 @@ function escapeCsv(value) {
   return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
 }
 
+// Force a cell to be read as text in Excel/Google Sheets via the ="..." trick,
+// preserving exact digits for IDs like Aadhaar / phone / pincode.
+function csvText(value) {
+  if (value == null || value === "") return "";
+  const v = value.toString().replace(/"/g, '""');
+  return `"=""${v}"""`;
+}
+
 function downloadCsv(students) {
   const lines = [CSV_COLUMNS.map((c) => escapeCsv(c.header)).join(",")];
   for (const s of students) {
-    lines.push(CSV_COLUMNS.map((c) => escapeCsv(c.get(s))).join(","));
+    lines.push(
+      CSV_COLUMNS.map((c) =>
+        c.asText ? csvText(c.get(s)) : escapeCsv(c.get(s))
+      ).join(",")
+    );
   }
   const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
@@ -336,6 +376,7 @@ function FilterSelect({ label, value, options, onChange }) {
 
 const EMPTY_FILTERS = {
   search: "",
+  status: "",
   class: "",
   year: "",
   gender: "",
@@ -396,6 +437,11 @@ export default function Home() {
     const q = filters.search.trim().toLowerCase();
     let list = students.filter((s) => {
       if (q && !fullName(s).toLowerCase().includes(q)) return false;
+      if (filters.status) {
+        const st = statusOf(s);
+        if (filters.status === "Draft" && st !== "draft") return false;
+        if (filters.status === "Filled" && st !== "complete") return false;
+      }
       if (filters.class && s.admission?.classAppliedFor !== filters.class)
         return false;
       if (filters.year && s.admission?.academicYear !== filters.year) return false;
@@ -426,11 +472,13 @@ export default function Home() {
     const transportYes = filtered.filter(
       (s) => s.transport?.required === "Yes"
     ).length;
+    const drafts = filtered.filter((s) => statusOf(s) === "draft").length;
 
     return {
       total: filtered.length,
       recentCount,
       transportYes,
+      drafts,
       classes: countBy(filtered, (s) => s.admission?.classAppliedFor),
       gender: countBy(filtered, (s) => s.identity?.gender),
       category: countBy(filtered, (s) => s.demographics?.category),
@@ -486,11 +534,17 @@ export default function Home() {
     setEditing(null);
   }
 
-  function handleSuccess(id, wasEdit) {
+  function handleSaved(id, status, wasEdit) {
+    load();
+    if (status === "draft") {
+      // Keep the form open so the user can keep filling it in.
+      setToast("Progress saved as draft");
+      setTimeout(() => setToast(null), 4000);
+      return;
+    }
     closeForm();
     setToast(wasEdit ? "Admission updated" : `Admission saved · Ref ${id}`);
     setTimeout(() => setToast(null), 4000);
-    load();
   }
 
   return (
@@ -528,6 +582,12 @@ export default function Home() {
               placeholder="Search by student name…"
               value={filters.search}
               onChange={(e) => setFilter("search", e.target.value)}
+            />
+            <FilterSelect
+              label="Status"
+              value={filters.status}
+              options={["Filled", "Draft"]}
+              onChange={(v) => setFilter("status", v)}
             />
             <FilterSelect
               label="Class"
@@ -582,6 +642,11 @@ export default function Home() {
               label="Last 7 Days"
               value={analytics.recentCount}
               sub="new applications"
+            />
+            <StatCard
+              label="Drafts"
+              value={analytics.drafts}
+              sub="in progress"
             />
             <StatCard
               label="Classes Applied"
@@ -687,7 +752,10 @@ export default function Home() {
                             <span className={`chevron${isOpen ? " open" : ""}`}>
                               ▸
                             </span>
-                            <span className="s-name">{fullName(s)}</span>
+                            <span className="s-name">
+                              <span className="s-name-text">{fullName(s)}</span>
+                              <StatusBadge status={statusOf(s)} />
+                            </span>
                             <span className="s-meta">
                               {s.admission?.classAppliedFor || "—"}
                             </span>
@@ -734,7 +802,7 @@ export default function Home() {
                 key={editing?.id || "new"}
                 id={editing?.id}
                 initial={editing}
-                onSuccess={handleSuccess}
+                onSaved={handleSaved}
                 onClose={closeForm}
               />
             </div>

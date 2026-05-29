@@ -80,13 +80,16 @@ function CheckboxGroup({ options, selected, onToggle }) {
   );
 }
 
-export default function AdmissionForm({ id, initial, onSuccess, onClose }) {
-  const isEdit = Boolean(id);
+export default function AdmissionForm({ id, initial, onSaved, onClose }) {
+  // The record id may not exist yet for a new admission; it is assigned after
+  // the first save (draft or final) so later saves update the same record.
+  const [recordId, setRecordId] = useState(id ?? null);
+  const startedAsEdit = Boolean(id);
   const [data, setData] = useState(() =>
     initial ? hydrateState(initial) : buildInitialState()
   );
   const [status, setStatus] = useState({ type: null, message: "" });
-  const [submitting, setSubmitting] = useState(false);
+  const [busy, setBusy] = useState(null); // "draft" | "complete" | null
 
   function updateField(sectionKey, name, value) {
     setData((prev) => ({
@@ -129,37 +132,55 @@ export default function AdmissionForm({ id, initial, onSuccess, onClose }) {
     });
   }
 
-  async function handleSubmit(e) {
-    e.preventDefault();
+  async function save(intent) {
     setStatus({ type: null, message: "" });
 
-    if (!data.identity.firstName.trim() || !data.identity.lastName.trim()) {
-      setStatus({ type: "error", message: "First name and last name are required." });
+    if (
+      intent === "complete" &&
+      (!data.identity.firstName.trim() || !data.identity.lastName.trim())
+    ) {
+      setStatus({
+        type: "error",
+        message: "First name and last name are required to submit.",
+      });
       return;
     }
 
-    setSubmitting(true);
+    setBusy(intent);
     try {
-      const res = await fetch(isEdit ? `/api/students/${id}` : "/api/students", {
-        method: isEdit ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
+      const res = await fetch(
+        recordId ? `/api/students/${recordId}` : "/api/students",
+        {
+          method: recordId ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...data, status: intent }),
+        }
+      );
       const body = await res.json();
-      if (!res.ok) throw new Error(body.error || "Submission failed.");
-      setStatus({
-        type: "success",
-        message: isEdit
-          ? "Admission updated successfully."
-          : `Admission submitted successfully. Reference ID: ${body.id}`,
-      });
-      if (!isEdit) setData(buildInitialState());
-      onSuccess?.(body.id, isEdit);
+      if (!res.ok) throw new Error(body.error || "Save failed.");
+
+      const savedId = recordId || body.id;
+      if (!recordId) setRecordId(savedId);
+
+      if (intent === "draft") {
+        setStatus({
+          type: "success",
+          message: "Progress saved as draft. You can finish it anytime.",
+        });
+        onSaved?.(savedId, "draft");
+      } else {
+        onSaved?.(savedId, "complete", startedAsEdit);
+      }
     } catch (err) {
       setStatus({ type: "error", message: err.message });
     } finally {
-      setSubmitting(false);
+      setBusy(null);
     }
+  }
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    save("complete");
   }
 
   return (
@@ -312,12 +333,20 @@ export default function AdmissionForm({ id, initial, onSuccess, onClose }) {
       </section>
 
       <div className="actions">
-        <button type="submit" className="submit" disabled={submitting}>
-          {submitting
+        <button type="submit" className="submit" disabled={busy !== null}>
+          {busy === "complete"
             ? "Saving..."
-            : isEdit
+            : startedAsEdit
             ? "Save Changes"
             : "Submit Admission"}
+        </button>
+        <button
+          type="button"
+          className="ghost-btn"
+          onClick={() => save("draft")}
+          disabled={busy !== null}
+        >
+          {busy === "draft" ? "Saving..." : "Save Progress"}
         </button>
         <button type="button" className="ghost-btn" onClick={onClose}>
           Cancel
